@@ -105,7 +105,11 @@ internal actual fun PlatformEpubWebView(
             .build()
     }
 
-    val ttsEngine = remember(context) { EpubTtsEngine().also { it.attach(context) } }
+    // Keyed the same as webView below, not just on context: the DisposableEffect that
+    // owns this engine's lifecycle recreates whenever webView does, and releases the
+    // old engine on teardown. A wider key here would leave the released engine
+    // permanently dead across a book change on the same reader screen.
+    val ttsEngine = remember(context, bookPath, controller) { EpubTtsEngine().also { it.attach(context) } }
 
     val webView = remember(context, bookPath, controller) {
         var webViewRef: WebView? = null
