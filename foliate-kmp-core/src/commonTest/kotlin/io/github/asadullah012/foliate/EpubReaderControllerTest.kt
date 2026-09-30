@@ -169,11 +169,23 @@ class EpubReaderControllerTest {
             EpubTtsSegment(mark = "0", text = "Hello"),
             EpubTtsSegment(mark = "1", text = "world.")
         )
+        controller.startTts()
 
         controller.onTtsBlock(segments)
 
         assertEquals(segments, controller.ttsSegments.value)
         assertEquals(-1, controller.ttsActiveSegmentIndex.value)
+    }
+
+    @Test
+    fun `onTtsBlock is ignored once playback is no longer PLAYING`() {
+        val controller = EpubReaderController()
+        controller.startTts()
+        controller.stopTts()
+
+        controller.onTtsBlock(listOf(EpubTtsSegment(mark = "0", text = "Hello")))
+
+        assertTrue(controller.ttsSegments.value.isEmpty())
     }
 
     @Test
@@ -197,6 +209,7 @@ class EpubReaderControllerTest {
         val executedScripts = mutableListOf<String>()
         controller.jsEvaluator = { executedScripts.add(it) }
         controller.onReady()
+        controller.startTts()
         controller.onTtsBlock(
             listOf(
                 EpubTtsSegment(mark = "0", text = "Hello"),
@@ -214,6 +227,7 @@ class EpubReaderControllerTest {
     fun `onDetached resets text-to-speech state`() {
         val controller = EpubReaderController()
         controller.onReady()
+        controller.startTts()
         controller.onTtsBlock(listOf(EpubTtsSegment(mark = "0", text = "Hello")))
 
         controller.onDetached()

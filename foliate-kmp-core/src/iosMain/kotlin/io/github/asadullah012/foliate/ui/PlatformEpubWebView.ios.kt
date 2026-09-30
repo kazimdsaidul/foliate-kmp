@@ -117,7 +117,12 @@ internal actual fun PlatformEpubWebView(
 ) {
     val scope = rememberCoroutineScope()
 
-    val ttsEngine = remember(controller) { EpubTtsEngine() }
+    // Keyed the same as host below, not just on controller: the DisposableEffect that
+    // owns this engine's lifecycle recreates whenever host does, and releases the old
+    // engine (nulling its AVSpeechSynthesizer delegate) on teardown. A wider key here
+    // would leave the released engine permanently dead across a book change on the
+    // same reader screen.
+    val ttsEngine = remember(bookPath, controller) { EpubTtsEngine() }
 
     val host = remember(bookPath, controller) {
         var webViewRef: WKWebView? = null

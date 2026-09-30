@@ -251,6 +251,17 @@
         let selectionDebounceTimer = null
         let hasActiveSelection = false
 
+        // Resolves a range in a content document to its section index and CFI. Shared by
+        // the selection handler and the text-to-speech highlight callback below -- both
+        // need to turn "a Range inside some doc" into the same (index, cfi) pair.
+        function resolveContentIndexAndCfi(doc, range) {
+            const contents = view.renderer?.getContents?.() || []
+            const content = contents.find(c => c.doc === doc)
+            const index = content?.index ?? 0
+            const cfi = view.getCFI ? view.getCFI(index, range) : ''
+            return { content, index, cfi }
+        }
+
         function handleSelectionChange(doc) {
             if (selectionDebounceTimer) clearTimeout(selectionDebounceTimer)
             selectionDebounceTimer = setTimeout(() => {
@@ -272,10 +283,7 @@
                     }
 
                     const range = sel.getRangeAt(0)
-                    const contents = view.renderer?.getContents?.() || []
-                    const content = contents.find(c => c.doc === doc)
-                    const index = content?.index ?? 0
-                    const cfi = view.getCFI ? view.getCFI(index, range) : ''
+                    const { index, cfi } = resolveContentIndexAndCfi(doc, range)
 
                     if (cfi) {
                         hasActiveSelection = true
@@ -512,9 +520,7 @@
             try {
                 const doc = range.commonAncestorContainer?.ownerDocument
                     ?? range.commonAncestorContainer
-                const contents = view.renderer?.getContents?.() || []
-                const content = contents.find(c => c.doc === doc)
-                const index = content?.index ?? 0
+                const { content, index, cfi } = resolveContentIndexAndCfi(doc, range)
 
                 if (content?.overlayer) {
                     if (ttsHighlightOverlayer && ttsHighlightOverlayer !== content.overlayer) {
@@ -525,7 +531,6 @@
                     ttsHighlightOverlayer = content.overlayer
                 }
 
-                const cfi = view.getCFI ? view.getCFI(index, range) : ''
                 if (cfi) {
                     postToNative({ type: 'tts_highlight', cfi: cfi, sectionIndex: index })
                 }

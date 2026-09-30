@@ -120,7 +120,7 @@ public fun ReaderTtsBar(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Slider(
-                    value = sliderValue.coerceIn(0.5f, 2.0f),
+                    value = sliderValue,
                     onValueChange = { sliderValue = it },
                     onValueChangeFinished = { onRateChange(sliderValue) },
                     valueRange = 0.5f..2.0f,

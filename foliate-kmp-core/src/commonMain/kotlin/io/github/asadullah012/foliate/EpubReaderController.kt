@@ -74,18 +74,35 @@ public class EpubReaderController {
     public val annotationClickEvents: SharedFlow<String> = _annotationClickEvents.asSharedFlow()
 
     private val _ttsPlaybackState = MutableStateFlow(EpubTtsPlaybackState.IDLE)
+
+    /** Current text-to-speech playback state. */
     public val ttsPlaybackState: StateFlow<EpubTtsPlaybackState> = _ttsPlaybackState.asStateFlow()
 
     private val _ttsSegments = MutableStateFlow<List<EpubTtsSegment>>(emptyList())
+
+    /** The block of text-to-speech segments the platform speech engine is working through. */
     public val ttsSegments: StateFlow<List<EpubTtsSegment>> = _ttsSegments.asStateFlow()
 
     private val _ttsActiveSegmentIndex = MutableStateFlow(-1)
+
+    /**
+     * Index into [ttsSegments] of the segment the platform speech engine last reported
+     * as started, or `-1` before any segment in the current block has started.
+     */
     public val ttsActiveSegmentIndex: StateFlow<Int> = _ttsActiveSegmentIndex.asStateFlow()
 
     private val _ttsRate = MutableStateFlow(1.0f)
+
+    /** Text-to-speech playback rate, `0.5` to `2.0`; `1.0` is the platform default. */
     public val ttsRate: StateFlow<Float> = _ttsRate.asStateFlow()
 
     private val _ttsHighlightEvents = MutableSharedFlow<String>(extraBufferCapacity = 1)
+
+    /**
+     * CFI of the text-to-speech segment currently being spoken, emitted each time the
+     * platform speech engine reports a new segment has started. A host can use this to
+     * scroll the reading position into view; the engine page already highlights it.
+     */
     public val ttsHighlightEvents: SharedFlow<String> = _ttsHighlightEvents.asSharedFlow()
 
     /**
@@ -340,6 +357,11 @@ public class EpubReaderController {
     /**
      * Pauses text-to-speech playback. The current segment queue is kept, so [resumeTts]
      * continues from where playback left off.
+     *
+     * Where exactly playback resumes is platform-dependent: iOS resumes mid-word, while
+     * Android -- whose speech engine has no native pause -- restarts the current
+     * sentence from its own beginning. Both are "resume from where you paused" at the
+     * granularity each platform's engine actually offers.
      */
     public fun pauseTts() {
         ttsEngine?.pause()
@@ -347,7 +369,8 @@ public class EpubReaderController {
     }
 
     /**
-     * Resumes text-to-speech playback after [pauseTts].
+     * Resumes text-to-speech playback after [pauseTts]. See [pauseTts] for how the
+     * exact resume point differs by platform.
      */
     public fun resumeTts() {
         ttsEngine?.resume()
@@ -396,6 +419,12 @@ public class EpubReaderController {
      * same way [onTtsSectionEnd] does.
      */
     internal fun onTtsBlock(segments: List<EpubTtsSegment>) {
+        // requestNextTtsBlock()/requestPrevTtsBlock() are fire-and-forget JS calls: the
+        // engine page answers with a later, separate tts_block message. The user can
+        // pause or stop before that answer arrives. Speaking (or even recording) a
+        // block that arrives after that point would override what the user just did,
+        // so a stale answer -- the playback state is no longer PLAYING -- is dropped.
+        if (_ttsPlaybackState.value != EpubTtsPlaybackState.PLAYING) return
         _ttsSegments.value = segments
         _ttsActiveSegmentIndex.value = -1
         if (segments.isEmpty()) {

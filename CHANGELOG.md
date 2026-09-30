@@ -22,6 +22,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 ### Changed
+- **Breaking (beta):** `ReaderTopBar` gained a required `onReadAloudClick: () -> Unit`
+  parameter for the new "Read Aloud" button. A caller invoking `ReaderTopBar` directly
+  needs to pass it; `ReaderScreen`, the typical entry point, already does.
 
 ## [0.1.0-beta01] - 2026-09-21
 
