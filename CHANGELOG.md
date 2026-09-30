@@ -11,6 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - GitHub YAML issue forms (`bug_report.yml`, `feature_request.yml`) and pull request template.
 - `CODE_OF_CONDUCT.md` adhering to Contributor Covenant v2.1.
 - Status badges in `README.md` for Maven Central, CI build status, License, Kotlin, and Compose Multiplatform.
+- Text-to-speech read-aloud for the current section: play/pause/stop, sentence-level
+  highlighting, and a rate control, using each platform's native speech engine
+  (`EpubReaderController.startTts()`/`pauseTts()`/`resumeTts()`/`stopTts()`/`setTtsRate()`,
+  `ReaderTtsBar`). Each sentence is queued as one native utterance so speech keeps its
+  natural prosody, rather than one utterance per word. Playback covers the current
+  spine section only; it stops at the section boundary rather than continuing
+  automatically into the next chapter.
 
 ### Fixed
 

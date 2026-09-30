@@ -1,6 +1,7 @@
 package io.github.asadullah012.foliate
 
 import androidx.compose.runtime.Stable
+import io.github.asadullah012.foliate.internal.EpubTtsEngine
 import io.github.asadullah012.foliate.model.EpubAnnotation
 import io.github.asadullah012.foliate.model.EpubFootnote
 import io.github.asadullah012.foliate.model.EpubReaderConfig
@@ -10,6 +11,8 @@ import io.github.asadullah012.foliate.model.EpubReaderTheme
 import io.github.asadullah012.foliate.model.EpubSearchResult
 import io.github.asadullah012.foliate.model.EpubTextSelection
 import io.github.asadullah012.foliate.model.EpubTocItem
+import io.github.asadullah012.foliate.model.EpubTtsPlaybackState
+import io.github.asadullah012.foliate.model.EpubTtsSegment
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -69,6 +72,30 @@ public class EpubReaderController {
 
     private val _annotationClickEvents = MutableSharedFlow<String>(extraBufferCapacity = 1)
     public val annotationClickEvents: SharedFlow<String> = _annotationClickEvents.asSharedFlow()
+
+    private val _ttsPlaybackState = MutableStateFlow(EpubTtsPlaybackState.IDLE)
+    public val ttsPlaybackState: StateFlow<EpubTtsPlaybackState> = _ttsPlaybackState.asStateFlow()
+
+    private val _ttsSegments = MutableStateFlow<List<EpubTtsSegment>>(emptyList())
+    public val ttsSegments: StateFlow<List<EpubTtsSegment>> = _ttsSegments.asStateFlow()
+
+    private val _ttsActiveSegmentIndex = MutableStateFlow(-1)
+    public val ttsActiveSegmentIndex: StateFlow<Int> = _ttsActiveSegmentIndex.asStateFlow()
+
+    private val _ttsRate = MutableStateFlow(1.0f)
+    public val ttsRate: StateFlow<Float> = _ttsRate.asStateFlow()
+
+    private val _ttsHighlightEvents = MutableSharedFlow<String>(extraBufferCapacity = 1)
+    public val ttsHighlightEvents: SharedFlow<String> = _ttsHighlightEvents.asSharedFlow()
+
+    /**
+     * The platform text-to-speech engine that turns queued [EpubTtsSegment]s into audio.
+     * A platform view sets this alongside [jsEvaluator] while it is attached, and clears
+     * it on teardown. The controller drives it directly; it never queues TTS commands
+     * the way it queues JS commands, because a TTS session only exists while a reader
+     * is already attached and ready.
+     */
+    internal var ttsEngine: EpubTtsEngine? = null
 
     internal var jsEvaluator: ((String) -> Unit)? = null
         set(value) {
@@ -239,6 +266,9 @@ public class EpubReaderController {
      */
     internal fun onDetached() {
         _isReady.value = false
+        _ttsPlaybackState.value = EpubTtsPlaybackState.IDLE
+        _ttsSegments.value = emptyList()
+        _ttsActiveSegmentIndex.value = -1
     }
 
     internal fun onError(message: String) {
@@ -293,6 +323,100 @@ public class EpubReaderController {
 
     internal fun onAnnotationClick(cfi: String) {
         _annotationClickEvents.tryEmit(cfi)
+    }
+
+    /**
+     * Starts reading the current section aloud from its beginning.
+     *
+     * Restarting from the exact reading position (rather than the section start) is not
+     * supported yet -- it needs the current viewport's location as a DOM range, which
+     * the engine does not expose to this command today.
+     */
+    public fun startTts() {
+        _ttsPlaybackState.value = EpubTtsPlaybackState.PLAYING
+        evaluateJs("window.readerController && window.readerController.startTts()")
+    }
+
+    /**
+     * Pauses text-to-speech playback. The current segment queue is kept, so [resumeTts]
+     * continues from where playback left off.
+     */
+    public fun pauseTts() {
+        ttsEngine?.pause()
+        _ttsPlaybackState.value = EpubTtsPlaybackState.PAUSED
+    }
+
+    /**
+     * Resumes text-to-speech playback after [pauseTts].
+     */
+    public fun resumeTts() {
+        ttsEngine?.resume()
+        _ttsPlaybackState.value = EpubTtsPlaybackState.PLAYING
+    }
+
+    /**
+     * Stops text-to-speech playback and clears the segment queue.
+     */
+    public fun stopTts() {
+        ttsEngine?.stop()
+        evaluateJs("window.readerController && window.readerController.stopTts()")
+        _ttsPlaybackState.value = EpubTtsPlaybackState.IDLE
+        _ttsSegments.value = emptyList()
+        _ttsActiveSegmentIndex.value = -1
+    }
+
+    /**
+     * Updates the text-to-speech playback rate.
+     *
+     * This never reaches the engine page -- the platform speech engine reads it
+     * directly the next time it speaks a segment.
+     */
+    public fun setTtsRate(rate: Float) {
+        _ttsRate.value = rate.coerceIn(0.5f, 2.0f)
+    }
+
+    private fun requestNextTtsBlock() {
+        evaluateJs("window.readerController && window.readerController.nextTtsBlock()")
+    }
+
+    /**
+     * Reports that the platform speech engine has started speaking the segment marked
+     * [mark], so the engine page can highlight/scroll to the matching text.
+     */
+    internal fun reportTtsMarkReached(mark: String) {
+        val index = _ttsSegments.value.indexOfFirst { it.mark == mark }
+        if (index >= 0) _ttsActiveSegmentIndex.value = index
+        val safeMark = json.encodeToString(mark)
+        evaluateJs("window.readerController && window.readerController.reportTtsMarkReached($safeMark)")
+    }
+
+    /**
+     * Receives one block of text-to-speech segments and hands it to the platform speech
+     * engine. An empty block (the engine found nothing to speak) ends the session the
+     * same way [onTtsSectionEnd] does.
+     */
+    internal fun onTtsBlock(segments: List<EpubTtsSegment>) {
+        _ttsSegments.value = segments
+        _ttsActiveSegmentIndex.value = -1
+        if (segments.isEmpty()) {
+            onTtsSectionEnd()
+            return
+        }
+        ttsEngine?.speak(
+            segments = segments,
+            rate = _ttsRate.value,
+            onSegmentStarted = { mark -> reportTtsMarkReached(mark) },
+            onFinished = { requestNextTtsBlock() }
+        )
+    }
+
+    internal fun onTtsHighlight(cfi: String) {
+        _ttsHighlightEvents.tryEmit(cfi)
+    }
+
+    /** The current section has no more text to speak. */
+    internal fun onTtsSectionEnd() {
+        stopTts()
     }
 
     private fun evaluateJs(script: String) {

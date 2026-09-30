@@ -145,6 +145,8 @@ Or build the framework for the Apple Silicon simulator:
 - **In-book search**: live substring matches with an excerpt and a jump to the CFI.
 - **Annotations and highlights**: persistent highlights with a color picker and notes.
 - **Footnotes**: automatic detection and a popup.
+- **Text-to-speech**: read the current section aloud, one sentence at a time, with
+  sentence highlighting and a rate control, using each platform's native speech engine.
 - **Pluggable persistence**: implement `EpubReaderStorage` to save progress, bookmarks
   and highlights to Room, SQLite, DataStore or a remote database. A reading position
   waits 2 seconds before it reaches storage, so a scroll causes one write and not one

@@ -3,6 +3,8 @@ package io.github.asadullah012.foliate
 import io.github.asadullah012.foliate.model.EpubReaderLocation
 import io.github.asadullah012.foliate.model.EpubReaderTheme
 import io.github.asadullah012.foliate.model.EpubTocItem
+import io.github.asadullah012.foliate.model.EpubTtsPlaybackState
+import io.github.asadullah012.foliate.model.EpubTtsSegment
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -126,5 +128,99 @@ class EpubReaderControllerTest {
         assertEquals(64, executedScripts.size)
         assertTrue(executedScripts.first().contains("cfi/436"))
         assertTrue(executedScripts.last().contains("cfi/499"))
+    }
+
+    @Test
+    fun `startTts and stopTts send expected javascript and update playback state`() {
+        val controller = EpubReaderController()
+        val executedScripts = mutableListOf<String>()
+        controller.jsEvaluator = { executedScripts.add(it) }
+        controller.onReady()
+
+        controller.startTts()
+        assertEquals(EpubTtsPlaybackState.PLAYING, controller.ttsPlaybackState.value)
+        assertTrue(executedScripts.last().contains("startTts()"))
+
+        controller.stopTts()
+        assertEquals(EpubTtsPlaybackState.IDLE, controller.ttsPlaybackState.value)
+        assertTrue(controller.ttsSegments.value.isEmpty())
+        assertEquals(-1, controller.ttsActiveSegmentIndex.value)
+        assertTrue(executedScripts.last().contains("stopTts()"))
+    }
+
+    @Test
+    fun `setTtsRate clamps to the supported range`() {
+        val controller = EpubReaderController()
+
+        controller.setTtsRate(0.1f)
+        assertEquals(0.5f, controller.ttsRate.value)
+
+        controller.setTtsRate(9f)
+        assertEquals(2.0f, controller.ttsRate.value)
+
+        controller.setTtsRate(1.25f)
+        assertEquals(1.25f, controller.ttsRate.value)
+    }
+
+    @Test
+    fun `onTtsBlock updates segments and resets the active segment index`() {
+        val controller = EpubReaderController()
+        val segments = listOf(
+            EpubTtsSegment(mark = "0", text = "Hello"),
+            EpubTtsSegment(mark = "1", text = "world.")
+        )
+
+        controller.onTtsBlock(segments)
+
+        assertEquals(segments, controller.ttsSegments.value)
+        assertEquals(-1, controller.ttsActiveSegmentIndex.value)
+    }
+
+    @Test
+    fun `onTtsBlock with no segments ends the session`() {
+        val controller = EpubReaderController()
+        val executedScripts = mutableListOf<String>()
+        controller.jsEvaluator = { executedScripts.add(it) }
+        controller.onReady()
+        controller.startTts()
+
+        controller.onTtsBlock(emptyList())
+
+        assertEquals(EpubTtsPlaybackState.IDLE, controller.ttsPlaybackState.value)
+        assertTrue(controller.ttsSegments.value.isEmpty())
+        assertTrue(executedScripts.last().contains("stopTts()"))
+    }
+
+    @Test
+    fun `reportTtsMarkReached updates the active segment index and sends javascript`() {
+        val controller = EpubReaderController()
+        val executedScripts = mutableListOf<String>()
+        controller.jsEvaluator = { executedScripts.add(it) }
+        controller.onReady()
+        controller.onTtsBlock(
+            listOf(
+                EpubTtsSegment(mark = "0", text = "Hello"),
+                EpubTtsSegment(mark = "1", text = "world.")
+            )
+        )
+
+        controller.reportTtsMarkReached("1")
+
+        assertEquals(1, controller.ttsActiveSegmentIndex.value)
+        assertTrue(executedScripts.last().contains("reportTtsMarkReached(\"1\")"))
+    }
+
+    @Test
+    fun `onDetached resets text-to-speech state`() {
+        val controller = EpubReaderController()
+        controller.onReady()
+        controller.onTtsBlock(listOf(EpubTtsSegment(mark = "0", text = "Hello")))
+
+        controller.onDetached()
+
+        assertFalse(controller.isReady.value)
+        assertEquals(EpubTtsPlaybackState.IDLE, controller.ttsPlaybackState.value)
+        assertTrue(controller.ttsSegments.value.isEmpty())
+        assertEquals(-1, controller.ttsActiveSegmentIndex.value)
     }
 }

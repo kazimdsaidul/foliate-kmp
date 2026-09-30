@@ -16,13 +16,20 @@ public final class io/github/asadullah012/foliate/EpubReaderController {
 	public final fun getTextSelection ()Lkotlinx/coroutines/flow/StateFlow;
 	public final fun getToc ()Lkotlinx/coroutines/flow/StateFlow;
 	public final fun getToggleControlsEvents ()Lkotlinx/coroutines/flow/SharedFlow;
+	public final fun getTtsActiveSegmentIndex ()Lkotlinx/coroutines/flow/StateFlow;
+	public final fun getTtsHighlightEvents ()Lkotlinx/coroutines/flow/SharedFlow;
+	public final fun getTtsPlaybackState ()Lkotlinx/coroutines/flow/StateFlow;
+	public final fun getTtsRate ()Lkotlinx/coroutines/flow/StateFlow;
+	public final fun getTtsSegments ()Lkotlinx/coroutines/flow/StateFlow;
 	public final fun goToCfi (Ljava/lang/String;)V
 	public final fun goToFraction (F)V
 	public final fun goToHref (Ljava/lang/String;)V
 	public final fun isReady ()Lkotlinx/coroutines/flow/StateFlow;
 	public final fun isSearching ()Lkotlinx/coroutines/flow/StateFlow;
 	public final fun nextPage ()V
+	public final fun pauseTts ()V
 	public final fun prevPage ()V
+	public final fun resumeTts ()V
 	public final fun search (Ljava/lang/String;)V
 	public final fun setFontFamily (Ljava/lang/String;)V
 	public final fun setFontSize (I)V
@@ -31,6 +38,9 @@ public final class io/github/asadullah012/foliate/EpubReaderController {
 	public final fun setMargin (I)V
 	public final fun setTextAlign (Ljava/lang/String;)V
 	public final fun setTheme (Lio/github/asadullah012/foliate/model/EpubReaderTheme;)V
+	public final fun setTtsRate (F)V
+	public final fun startTts ()V
+	public final fun stopTts ()V
 }
 
 public abstract interface class io/github/asadullah012/foliate/domain/EpubReaderStorage {
@@ -430,6 +440,48 @@ public final synthetic class io/github/asadullah012/foliate/model/EpubTocItem$$s
 }
 
 public final class io/github/asadullah012/foliate/model/EpubTocItem$Companion {
+	public final fun serializer ()Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/asadullah012/foliate/model/EpubTtsPlaybackState : java/lang/Enum {
+	public static final field IDLE Lio/github/asadullah012/foliate/model/EpubTtsPlaybackState;
+	public static final field PAUSED Lio/github/asadullah012/foliate/model/EpubTtsPlaybackState;
+	public static final field PLAYING Lio/github/asadullah012/foliate/model/EpubTtsPlaybackState;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/asadullah012/foliate/model/EpubTtsPlaybackState;
+	public static fun values ()[Lio/github/asadullah012/foliate/model/EpubTtsPlaybackState;
+}
+
+public final class io/github/asadullah012/foliate/model/EpubTtsSegment {
+	public static final field $stable I
+	public static final field Companion Lio/github/asadullah012/foliate/model/EpubTtsSegment$Companion;
+	public fun <init> ()V
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;)Lio/github/asadullah012/foliate/model/EpubTtsSegment;
+	public static synthetic fun copy$default (Lio/github/asadullah012/foliate/model/EpubTtsSegment;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lio/github/asadullah012/foliate/model/EpubTtsSegment;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getMark ()Ljava/lang/String;
+	public final fun getText ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final synthetic class io/github/asadullah012/foliate/model/EpubTtsSegment$$serializer : kotlinx/serialization/internal/GeneratedSerializer {
+	public static final field $stable I
+	public static final field INSTANCE Lio/github/asadullah012/foliate/model/EpubTtsSegment$$serializer;
+	public final fun childSerializers ()[Lkotlinx/serialization/KSerializer;
+	public final fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Lio/github/asadullah012/foliate/model/EpubTtsSegment;
+	public synthetic fun deserialize (Lkotlinx/serialization/encoding/Decoder;)Ljava/lang/Object;
+	public final fun getDescriptor ()Lkotlinx/serialization/descriptors/SerialDescriptor;
+	public final fun serialize (Lkotlinx/serialization/encoding/Encoder;Lio/github/asadullah012/foliate/model/EpubTtsSegment;)V
+	public synthetic fun serialize (Lkotlinx/serialization/encoding/Encoder;Ljava/lang/Object;)V
+	public fun typeParametersSerializers ()[Lkotlinx/serialization/KSerializer;
+}
+
+public final class io/github/asadullah012/foliate/model/EpubTtsSegment$Companion {
 	public final fun serializer ()Lkotlinx/serialization/KSerializer;
 }
 

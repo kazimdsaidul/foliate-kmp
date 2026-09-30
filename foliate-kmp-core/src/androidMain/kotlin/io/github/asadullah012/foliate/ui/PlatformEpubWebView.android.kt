@@ -27,11 +27,13 @@ import io.github.asadullah012.foliate.EpubReaderController
 import io.github.asadullah012.foliate.internal.FOLIATE_LOG_TAG
 import io.github.asadullah012.foliate.internal.FoliateAssets
 import io.github.asadullah012.foliate.internal.isVerboseLoggingEnabled
+import io.github.asadullah012.foliate.internal.EpubTtsEngine
 import io.github.asadullah012.foliate.model.EpubFootnote
 import io.github.asadullah012.foliate.model.EpubReaderLocation
 import io.github.asadullah012.foliate.model.EpubSearchResult
 import io.github.asadullah012.foliate.model.EpubTextSelection
 import io.github.asadullah012.foliate.model.EpubTocItem
+import io.github.asadullah012.foliate.model.EpubTtsSegment
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -102,6 +104,8 @@ internal actual fun PlatformEpubWebView(
             .addPathHandler(ENGINE_PATH_PREFIX, FoliateEnginePathHandler(context))
             .build()
     }
+
+    val ttsEngine = remember(context) { EpubTtsEngine().also { it.attach(context) } }
 
     val webView = remember(context, bookPath, controller) {
         var webViewRef: WebView? = null
@@ -225,15 +229,18 @@ internal actual fun PlatformEpubWebView(
         wv
     }
 
-    DisposableEffect(webView, controller) {
+    DisposableEffect(webView, controller, ttsEngine) {
         controller.jsEvaluator = { script ->
             webView.post {
                 webView.evaluateJavascript(script, null)
             }
         }
+        controller.ttsEngine = ttsEngine
         onDispose {
             controller.jsEvaluator = null
+            controller.ttsEngine = null
             controller.onDetached()
+            ttsEngine.release()
             webView.stopLoading()
             webView.destroy()
         }
@@ -452,6 +459,24 @@ internal class AndroidEpubBridge(
                         if (!cfi.isNullOrBlank()) {
                             controller.onAnnotationClick(cfi)
                         }
+                    }
+                    "tts_block" -> {
+                        val items = element["segments"]?.jsonArray
+                        val segments = if (items != null) {
+                            json.decodeFromJsonElement<List<EpubTtsSegment>>(items)
+                        } else {
+                            emptyList()
+                        }
+                        controller.onTtsBlock(segments)
+                    }
+                    "tts_highlight" -> {
+                        val cfi = element["cfi"]?.jsonPrimitive?.contentOrNull
+                        if (!cfi.isNullOrBlank()) {
+                            controller.onTtsHighlight(cfi)
+                        }
+                    }
+                    "tts_section_end" -> {
+                        controller.onTtsSectionEnd()
                     }
                     else -> {
                         Log.w(TAG, "Unknown bridge message type: $type")

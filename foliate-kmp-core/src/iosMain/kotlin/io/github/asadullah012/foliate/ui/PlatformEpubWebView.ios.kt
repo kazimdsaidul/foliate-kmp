@@ -7,6 +7,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.UIKitView
 import io.github.asadullah012.foliate.EpubReaderController
+import io.github.asadullah012.foliate.internal.EpubTtsEngine
 import io.github.asadullah012.foliate.internal.FOLIATE_LOG_TAG
 import io.github.asadullah012.foliate.internal.FoliateAssets
 import io.github.asadullah012.foliate.internal.isVerboseLoggingEnabled
@@ -15,6 +16,7 @@ import io.github.asadullah012.foliate.model.EpubReaderLocation
 import io.github.asadullah012.foliate.model.EpubSearchResult
 import io.github.asadullah012.foliate.model.EpubTextSelection
 import io.github.asadullah012.foliate.model.EpubTocItem
+import io.github.asadullah012.foliate.model.EpubTtsSegment
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.ObjCSignatureOverride
 import kotlinx.cinterop.cValue
@@ -115,6 +117,8 @@ internal actual fun PlatformEpubWebView(
 ) {
     val scope = rememberCoroutineScope()
 
+    val ttsEngine = remember(controller) { EpubTtsEngine() }
+
     val host = remember(bookPath, controller) {
         var webViewRef: WKWebView? = null
 
@@ -142,20 +146,23 @@ internal actual fun PlatformEpubWebView(
         )
     }
 
-    DisposableEffect(host, controller) {
+    DisposableEffect(host, controller, ttsEngine) {
         val webView = host.webView
 
         controller.jsEvaluator = { script ->
             // WKWebView accepts calls on the main thread only.
             onMainThread { webView.evaluateJavaScript(script, null) }
         }
+        controller.ttsEngine = ttsEngine
 
         val request = NSURLRequest.requestWithURL(NSURL.URLWithString(READER_URL)!!)
         webView.loadRequest(request)
 
         onDispose {
             controller.jsEvaluator = null
+            controller.ttsEngine = null
             controller.onDetached()
+            ttsEngine.release()
             webView.navigationDelegate = null
             webView.configuration.userContentController.removeScriptMessageHandlerForName(BRIDGE_NAME)
             webView.stopLoading()
@@ -476,6 +483,24 @@ private class IosEpubScriptMessageHandler(
                         if (!cfi.isNullOrBlank()) {
                             controller.onAnnotationClick(cfi)
                         }
+                    }
+                    "tts_block" -> {
+                        val items = element["segments"]?.jsonArray
+                        val segments = if (items != null) {
+                            json.decodeFromJsonElement<List<EpubTtsSegment>>(items)
+                        } else {
+                            emptyList()
+                        }
+                        controller.onTtsBlock(segments)
+                    }
+                    "tts_highlight" -> {
+                        val cfi = element["cfi"]?.jsonPrimitive?.contentOrNull
+                        if (!cfi.isNullOrBlank()) {
+                            controller.onTtsHighlight(cfi)
+                        }
+                    }
+                    "tts_section_end" -> {
+                        controller.onTtsSectionEnd()
                     }
                     else -> {
                         println("[$FOLIATE_LOG_TAG] Unknown bridge message type: $type")

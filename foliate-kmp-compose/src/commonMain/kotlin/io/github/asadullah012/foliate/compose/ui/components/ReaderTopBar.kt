@@ -14,6 +14,7 @@ import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.FormatSize
+import androidx.compose.material.icons.filled.RecordVoiceOver
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -40,6 +41,7 @@ public fun ReaderTopBar(
     onBookmarkClick: () -> Unit,
     onTocClick: () -> Unit,
     onAppearanceClick: () -> Unit,
+    onReadAloudClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Surface(
@@ -117,6 +119,17 @@ public fun ReaderTopBar(
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.List,
                     contentDescription = "Table of contents",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            IconButton(
+                onClick = onReadAloudClick,
+                modifier = Modifier.size(48.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.RecordVoiceOver,
+                    contentDescription = "Read aloud",
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }

@@ -44,6 +44,7 @@ import io.github.asadullah012.foliate.ui.EpubReader
 import io.github.asadullah012.foliate.model.EpubAnnotation
 import io.github.asadullah012.foliate.model.EpubFontOption
 import io.github.asadullah012.foliate.model.EpubReaderSheet
+import io.github.asadullah012.foliate.model.EpubTtsPlaybackState
 import io.github.asadullah012.foliate.compose.presentation.ReaderEffect
 import io.github.asadullah012.foliate.compose.presentation.ReaderEvent
 import io.github.asadullah012.foliate.compose.presentation.ReaderModel
@@ -57,6 +58,7 @@ import io.github.asadullah012.foliate.compose.ui.components.ReaderSearchDialog
 import io.github.asadullah012.foliate.compose.ui.components.ReaderSelectionToolbar
 import io.github.asadullah012.foliate.compose.ui.components.ReaderTocDrawer
 import io.github.asadullah012.foliate.compose.ui.components.ReaderTopBar
+import io.github.asadullah012.foliate.compose.ui.components.ReaderTtsBar
 import kotlin.time.Clock
 
 /**
@@ -301,6 +303,9 @@ private fun ReaderOverlays(
     controller: EpubReaderController,
     model: ReaderModel
 ) {
+    val ttsPlaybackState by controller.ttsPlaybackState.collectAsStateWithLifecycle()
+    val ttsRate by controller.ttsRate.collectAsStateWithLifecycle()
+
     Box(modifier = Modifier.fillMaxSize()) {
         AnimatedVisibility(
             visible = state.isControlsVisible,
@@ -316,25 +321,47 @@ private fun ReaderOverlays(
                 onSearchClick = { model.onEvent(ReaderEvent.OpenSheet(EpubReaderSheet.SEARCH)) },
                 onBookmarkClick = { model.onEvent(ReaderEvent.ToggleBookmark) },
                 onTocClick = { model.onEvent(ReaderEvent.OpenSheet(EpubReaderSheet.TOC)) },
-                onAppearanceClick = { model.onEvent(ReaderEvent.OpenSheet(EpubReaderSheet.APPEARANCE)) }
+                onAppearanceClick = { model.onEvent(ReaderEvent.OpenSheet(EpubReaderSheet.APPEARANCE)) },
+                onReadAloudClick = { controller.startTts() }
             )
         }
 
-        AnimatedVisibility(
-            visible = state.isControlsVisible,
-            enter = slideInVertically { it } + fadeIn(),
-            exit = slideOutVertically { it } + fadeOut(),
-            modifier = Modifier.align(Alignment.BottomCenter)
-        ) {
-            ReaderBottomBar(
-                progressFraction = state.progressFraction,
-                sectionIndex = state.currentSectionIndex,
-                totalSections = state.totalSections,
-                chapterTitle = state.currentChapterTitle,
-                onPrevPage = { controller.prevPage() },
-                onNextPage = { controller.nextPage() },
-                onProgressChange = { frac -> controller.goToFraction(frac) }
-            )
+        Column(modifier = Modifier.align(Alignment.BottomCenter)) {
+            AnimatedVisibility(
+                visible = ttsPlaybackState != EpubTtsPlaybackState.IDLE,
+                enter = slideInVertically { it } + fadeIn(),
+                exit = slideOutVertically { it } + fadeOut()
+            ) {
+                ReaderTtsBar(
+                    playbackState = ttsPlaybackState,
+                    rate = ttsRate,
+                    onPlayPause = {
+                        when (ttsPlaybackState) {
+                            EpubTtsPlaybackState.PLAYING -> controller.pauseTts()
+                            EpubTtsPlaybackState.PAUSED -> controller.resumeTts()
+                            EpubTtsPlaybackState.IDLE -> controller.startTts()
+                        }
+                    },
+                    onStop = { controller.stopTts() },
+                    onRateChange = { controller.setTtsRate(it) }
+                )
+            }
+
+            AnimatedVisibility(
+                visible = state.isControlsVisible,
+                enter = slideInVertically { it } + fadeIn(),
+                exit = slideOutVertically { it } + fadeOut()
+            ) {
+                ReaderBottomBar(
+                    progressFraction = state.progressFraction,
+                    sectionIndex = state.currentSectionIndex,
+                    totalSections = state.totalSections,
+                    chapterTitle = state.currentChapterTitle,
+                    onPrevPage = { controller.prevPage() },
+                    onNextPage = { controller.nextPage() },
+                    onProgressChange = { frac -> controller.goToFraction(frac) }
+                )
+            }
         }
 
         ReaderBrightnessHud(
