@@ -10,7 +10,7 @@ the Android AAR, and in the `composeResources` directory inside the iOS framewor
 
 - Home page: https://github.com/johnfactotum/foliate-js
 - Files: `epub.js`, `epubcfi.js`, `fixed-layout.js`, `index.html`, `overlayer.js`,
-  `paginator.js`, `progress.js`, `search.js`, `text-walker.js`, `view.js`
+  `paginator.js`, `progress.js`, `search.js`, `text-walker.js`, `tts.js`, `view.js`
 
 ```
 MIT License

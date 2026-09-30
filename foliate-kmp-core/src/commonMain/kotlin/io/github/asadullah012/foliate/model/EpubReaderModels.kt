@@ -214,3 +214,34 @@ public enum class EpubReaderSheet {
     TOC,
     SEARCH
 }
+
+/**
+ * One spoken unit of text-to-speech playback within the current section.
+ *
+ * The reader engine returns a block of speech as SSML with a mark before each word (or
+ * sentence). A segment is the text between one mark and the next, paired with that
+ * mark's name. The platform speech engine speaks segments in order and reports each
+ * [mark] back to the engine as it starts, so the corresponding text can be highlighted.
+ *
+ * @property mark Name of the SSML mark that starts this segment.
+ * @property text The text to speak for this segment.
+ */
+@Immutable
+@Serializable
+public data class EpubTtsSegment(
+    public val mark: String = "",
+    public val text: String = ""
+)
+
+/**
+ * Playback state of text-to-speech read-aloud.
+ */
+@Immutable
+public enum class EpubTtsPlaybackState {
+    /** No text-to-speech session is active. */
+    IDLE,
+    /** Speech is actively playing. */
+    PLAYING,
+    /** A speech session exists but is paused. */
+    PAUSED
+}

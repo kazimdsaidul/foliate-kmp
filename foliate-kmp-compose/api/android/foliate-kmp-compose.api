@@ -563,10 +563,17 @@ public final class io/github/asadullah012/foliate/compose/ui/components/Composab
 public final class io/github/asadullah012/foliate/compose/ui/components/ComposableSingletons$ReaderTopBarKt {
 	public static final field INSTANCE Lio/github/asadullah012/foliate/compose/ui/components/ComposableSingletons$ReaderTopBarKt;
 	public fun <init> ()V
-	public final fun getLambda$-1691110392$io_github_asadullah012_foliate_kmp_compose ()Lkotlin/jvm/functions/Function2;
-	public final fun getLambda$-2147077745$io_github_asadullah012_foliate_kmp_compose ()Lkotlin/jvm/functions/Function2;
-	public final fun getLambda$1147443849$io_github_asadullah012_foliate_kmp_compose ()Lkotlin/jvm/functions/Function2;
-	public final fun getLambda$1221715718$io_github_asadullah012_foliate_kmp_compose ()Lkotlin/jvm/functions/Function2;
+	public final fun getLambda$-982083051$io_github_asadullah012_foliate_kmp_compose ()Lkotlin/jvm/functions/Function2;
+	public final fun getLambda$1483677908$io_github_asadullah012_foliate_kmp_compose ()Lkotlin/jvm/functions/Function2;
+	public final fun getLambda$2120232530$io_github_asadullah012_foliate_kmp_compose ()Lkotlin/jvm/functions/Function2;
+	public final fun getLambda$245604763$io_github_asadullah012_foliate_kmp_compose ()Lkotlin/jvm/functions/Function2;
+	public final fun getLambda$847123286$io_github_asadullah012_foliate_kmp_compose ()Lkotlin/jvm/functions/Function2;
+}
+
+public final class io/github/asadullah012/foliate/compose/ui/components/ComposableSingletons$ReaderTtsBarKt {
+	public static final field INSTANCE Lio/github/asadullah012/foliate/compose/ui/components/ComposableSingletons$ReaderTtsBarKt;
+	public fun <init> ()V
+	public final fun getLambda$-2141745339$io_github_asadullah012_foliate_kmp_compose ()Lkotlin/jvm/functions/Function2;
 }
 
 public final class io/github/asadullah012/foliate/compose/ui/components/ReaderAnnotationDialogKt {
@@ -602,6 +609,10 @@ public final class io/github/asadullah012/foliate/compose/ui/components/ReaderTo
 }
 
 public final class io/github/asadullah012/foliate/compose/ui/components/ReaderTopBarKt {
-	public static final fun ReaderTopBar (Ljava/lang/String;Ljava/lang/String;ZLkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;Landroidx/compose/ui/Modifier;Landroidx/compose/runtime/Composer;II)V
+	public static final fun ReaderTopBar (Ljava/lang/String;Ljava/lang/String;ZLkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;Landroidx/compose/ui/Modifier;Landroidx/compose/runtime/Composer;II)V
+}
+
+public final class io/github/asadullah012/foliate/compose/ui/components/ReaderTtsBarKt {
+	public static final fun ReaderTtsBar (Lio/github/asadullah012/foliate/model/EpubTtsPlaybackState;FLkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function1;Landroidx/compose/ui/Modifier;Landroidx/compose/runtime/Composer;II)V
 }
 

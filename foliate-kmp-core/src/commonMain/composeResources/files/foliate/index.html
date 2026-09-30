@@ -494,6 +494,79 @@
             }
         }
 
+        const TTS_HIGHLIGHT_KEY = 'foliate-tts-highlight'
+        const TTS_HIGHLIGHT_COLOR = '#90CAF9'
+        let ttsHighlightOverlayer = null
+
+        function clearTtsHighlight() {
+            if (ttsHighlightOverlayer) {
+                ttsHighlightOverlayer.remove(TTS_HIGHLIGHT_KEY)
+                ttsHighlightOverlayer = null
+            }
+        }
+
+        // Draws a highlight over the sentence currently being spoken, and converts its
+        // range to a CFI to report to native. The highlight is a plain overlay, not a
+        // saved annotation -- it moves with each call and clears on stopTts().
+        function highlightRange(range) {
+            try {
+                const doc = range.commonAncestorContainer?.ownerDocument
+                    ?? range.commonAncestorContainer
+                const contents = view.renderer?.getContents?.() || []
+                const content = contents.find(c => c.doc === doc)
+                const index = content?.index ?? 0
+
+                if (content?.overlayer) {
+                    if (ttsHighlightOverlayer && ttsHighlightOverlayer !== content.overlayer) {
+                        ttsHighlightOverlayer.remove(TTS_HIGHLIGHT_KEY)
+                    }
+                    content.overlayer.add(
+                        TTS_HIGHLIGHT_KEY, range, Overlayer.highlight, { color: TTS_HIGHLIGHT_COLOR })
+                    ttsHighlightOverlayer = content.overlayer
+                }
+
+                const cfi = view.getCFI ? view.getCFI(index, range) : ''
+                if (cfi) {
+                    postToNative({ type: 'tts_highlight', cfi: cfi, sectionIndex: index })
+                }
+            } catch (e) {
+                console.error('[Foliate-HTML] TTS highlight error:', e)
+            }
+        }
+
+        // tts.js returns each block of speech as a serialized SSML string with
+        // <mark name="..."/> elements marking the start of each word (or sentence).
+        // Native speech engines don't consume SSML marks directly, so this walks the
+        // parsed SSML in document order and groups the text between successive marks
+        // into an ordered list of { mark, text } segments that native speaks one at a
+        // time, reporting each mark back via reportTtsMarkReached() as it starts.
+        function parseSsmlSegments(ssmlString) {
+            if (!ssmlString) return []
+            try {
+                const doc = new DOMParser().parseFromString(ssmlString, 'application/xml')
+                const speak = doc.documentElement
+                if (!speak || speak.nodeName === 'parsererror') return []
+                const segments = []
+                let current = null
+                const walker = doc.createTreeWalker(
+                    speak, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT)
+                let node = walker.nextNode()
+                while (node) {
+                    if (node.nodeType === 1 && node.localName === 'mark') {
+                        current = { mark: node.getAttribute('name') || '', text: '' }
+                        segments.push(current)
+                    } else if (node.nodeType === 3 && current) {
+                        current.text += node.nodeValue
+                    }
+                    node = walker.nextNode()
+                }
+                return segments.filter(s => s.text.trim().length > 0)
+            } catch (e) {
+                console.error('[Foliate-HTML] Error parsing TTS SSML:', e)
+                return []
+            }
+        }
+
         view.addEventListener('draw-annotation', ({ detail: { draw, annotation } }) => {
             console.log('[Foliate-HTML] draw-annotation triggered for CFI:', annotation.value)
             draw(Overlayer.highlight, { color: annotation.color || '#FFEB3B' })
@@ -698,6 +771,71 @@
                     }
                 } catch (e) {
                     console.error('[Foliate-HTML] Error clearing selection:', e)
+                }
+            },
+            // Starts reading the current section aloud from its beginning. (Starting
+            // from the exact current reading position, via view.tts.from(range), is
+            // left for a follow-up -- it needs the current viewport's DOM range, which
+            // the paginator does not expose to this page today.)
+            //
+            // Sentence granularity, not word: queuing one native utterance per WORD
+            // (as separate, isolated utterances) strips out the prosody a speech
+            // engine applies across a sentence, so it comes out flat and robotic.
+            // One utterance per sentence sounds natural. The highlight callback still
+            // reports one CFI per spoken unit -- it just now covers a whole sentence.
+            async startTts() {
+                console.log('[Foliate-HTML] startTts() called')
+                try {
+                    await view.initTTS('sentence', highlightRange)
+                    const ssml = view.tts.start()
+                    if (!ssml) {
+                        postToNative({ type: 'tts_section_end' })
+                        return
+                    }
+                    postToNative({ type: 'tts_block', segments: parseSsmlSegments(ssml) })
+                } catch (e) {
+                    console.error('[Foliate-HTML] startTts error:', e)
+                    postToNative({ type: 'tts_section_end' })
+                }
+            },
+            nextTtsBlock() {
+                console.log('[Foliate-HTML] nextTtsBlock() called')
+                try {
+                    const ssml = view.tts ? view.tts.next() : null
+                    if (!ssml) {
+                        postToNative({ type: 'tts_section_end' })
+                        return
+                    }
+                    postToNative({ type: 'tts_block', segments: parseSsmlSegments(ssml) })
+                } catch (e) {
+                    console.error('[Foliate-HTML] nextTtsBlock error:', e)
+                    postToNative({ type: 'tts_section_end' })
+                }
+            },
+            prevTtsBlock() {
+                console.log('[Foliate-HTML] prevTtsBlock() called')
+                try {
+                    const ssml = view.tts ? view.tts.prev() : null
+                    if (!ssml) {
+                        postToNative({ type: 'tts_section_end' })
+                        return
+                    }
+                    postToNative({ type: 'tts_block', segments: parseSsmlSegments(ssml) })
+                } catch (e) {
+                    console.error('[Foliate-HTML] prevTtsBlock error:', e)
+                    postToNative({ type: 'tts_section_end' })
+                }
+            },
+            stopTts() {
+                console.log('[Foliate-HTML] stopTts() called')
+                clearTtsHighlight()
+                view.tts = null
+            },
+            reportTtsMarkReached(mark) {
+                try {
+                    if (view.tts) view.tts.setMark(mark)
+                } catch (e) {
+                    console.error('[Foliate-HTML] reportTtsMarkReached error:', e)
                 }
             }
         }
